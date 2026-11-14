@@ -35,10 +35,17 @@
 		"enabled": true
 	},
 	"upload_source_maps": true,
-	 "vars": {
-    "AI_PROVIDER": "gemini",
-    "AI_MODEL": "gemini-2.5-flash"
-  }
+	"vars": {
+		"AI_PROVIDER": "gemini",
+		"AI_MODEL": "gemini-2.5-flash"
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "pricepad-db",
+			"database_id": "f4ee1f57-b771-414d-aa59-b7146906df19"
+		}
+	]
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
