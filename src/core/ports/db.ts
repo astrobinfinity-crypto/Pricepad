@@ -7,8 +7,12 @@ export type PriceList = {
 };
 
 export interface DbPort {
-  /** Create the user if new; return their internal id either way. */
   upsertUser(firebaseUid: string, email?: string): Promise<string>;
   createList(ownerId: string, title: string, slug: string, columns: string[]): Promise<PriceList>;
   listListsByOwner(ownerId: string): Promise<PriceList[]>;
+  /** Returns null if the list doesn't exist OR belongs to someone else. */
+  getListForOwner(ownerId: string, listId: string): Promise<PriceList | null>;
+  listItems(listId: string): Promise<string[][]>;
+  /** Replaces title, columns and all rows. Returns false if the list isn't owned by ownerId. */
+  saveList(ownerId: string, listId: string, title: string, columns: string[], rows: string[][]): Promise<boolean>;
 }
