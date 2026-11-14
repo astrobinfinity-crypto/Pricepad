@@ -34,7 +34,11 @@
 	"observability": {
 		"enabled": true
 	},
-	"upload_source_maps": true
+	"upload_source_maps": true,
+	 "vars": {
+    "AI_PROVIDER": "gemini",
+    "AI_MODEL": "gemini-2.5-flash"
+  }
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
