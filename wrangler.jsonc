@@ -37,7 +37,8 @@
 	"upload_source_maps": true,
 	"vars": {
 		"AI_PROVIDER": "gemini",
-		"AI_MODEL": "gemini-2.5-flash"
+		"AI_MODEL": "gemini-2.5-flash",
+		"FIREBASE_PROJECT_ID": "pricepad-4a74f"
 	},
 	"d1_databases": [
 		{
