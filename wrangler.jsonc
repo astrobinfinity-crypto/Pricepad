@@ -46,7 +46,13 @@
 			"database_name": "pricepad-db",
 			"database_id": "f4ee1f57-b771-414d-aa59-b7146906df19"
 		}
-	]
+	],
+	  "kv_namespaces": [
+    {
+      "binding": "CACHE",
+      "id": "025aa2fe3cf84dae83b8cefebe5877ee"
+    }
+  ]
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement

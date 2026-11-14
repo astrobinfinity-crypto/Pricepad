@@ -4,6 +4,8 @@ export type PriceList = {
   slug: string;
   title: string;
   columns: string[];
+  whatsapp: string | null;
+  publishedAt: number | null;
 };
 
 export interface DbPort {
@@ -13,6 +15,7 @@ export interface DbPort {
   /** Returns null if the list doesn't exist OR belongs to someone else. */
   getListForOwner(ownerId: string, listId: string): Promise<PriceList | null>;
   listItems(listId: string): Promise<string[][]>;
-  /** Replaces title, columns and all rows. Returns false if the list isn't owned by ownerId. */
   saveList(ownerId: string, listId: string, title: string, columns: string[], rows: string[][]): Promise<boolean>;
+  /** publishedAt = null means unpublished. whatsapp = null keeps the stored number. */
+  setPublication(ownerId: string, listId: string, publishedAt: number | null, whatsapp: string | null): Promise<boolean>;
 }

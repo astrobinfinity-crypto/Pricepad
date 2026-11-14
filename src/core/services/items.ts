@@ -18,7 +18,15 @@ export async function getListWithItems(db: DbPort, userId: string, listId: strin
   const list = await db.getListForOwner(userId, listId);
   if (!list) throw new AppError(404, "Not found");
   const rows = await db.listItems(list.id);
-  return { id: list.id, slug: list.slug, title: list.title, columns: list.columns, rows };
+    return {
+    id: list.id,
+    slug: list.slug,
+    title: list.title,
+    columns: list.columns,
+    rows,
+    whatsapp: list.whatsapp,
+    publishedAt: list.publishedAt,
+  };
 }
 
 export async function saveListForUser(db: DbPort, userId: string, listId: string, input: SaveListInput) {

@@ -6,8 +6,18 @@ import { useParams, useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../../../../lib/firebase-client";
 import { apiFetch } from "../../../../lib/api";
+import PublishPanel from "./PublishPanel";
 
-type ListData = { id: string; slug: string; title: string; columns: string[]; rows: string[][] };
+
+type ListData = {
+  id: string;
+  slug: string;
+  title: string;
+  columns: string[];
+  rows: string[][];
+  whatsapp: string | null;
+  publishedAt: number | null;
+};
 
 export default function ListEditorPage() {
   const router = useRouter();
@@ -21,6 +31,7 @@ export default function ListEditorPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [pub, setPub] = useState<{ slug: string; whatsapp: string | null; publishedAt: number | null } | null>(null);
 
   useEffect(() => {
     return onAuthStateChanged(auth, async (user) => {
@@ -35,6 +46,7 @@ export default function ListEditorPage() {
         setTitle(data.title);
         setColumns(data.columns);
         setRows(data.rows);
+        setPub({ slug: data.slug, whatsapp: data.whatsapp, publishedAt: data.publishedAt });
         setLoading(false);
       } catch {
         setError("Could not load this list.");
@@ -129,7 +141,15 @@ export default function ListEditorPage() {
         {!error && message && <span className="text-green-700">{message}</span>}
         {!error && !message && dirty && <span className="text-gray-600">Unsaved changes</span>}
       </p>
-
+            {pub && (
+        <PublishPanel
+          listId={id}
+          slug={pub.slug}
+          initialWhatsapp={pub.whatsapp}
+          initialPublishedAt={pub.publishedAt}
+          unsaved={dirty}
+        />
+      )}
       <div className="mt-4 overflow-x-auto">
         <table className="w-full min-w-[600px] border-collapse">
           <thead>

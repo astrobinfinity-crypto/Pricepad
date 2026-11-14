@@ -1,6 +1,16 @@
 import type { DbPort, PriceList } from "../../core/ports/db";
 
-type ListRow = { id: string; owner_id: string; slug: string; title: string; columns_json: string };
+type ListRow = {
+  id: string;
+  owner_id: string;
+  slug: string;
+  title: string;
+  columns_json: string;
+  whatsapp: string | null;
+  published_at: number | null;
+};
+
+const LIST_COLUMNS = "id, owner_id, slug, title, columns_json, whatsapp, published_at";
 
 const toList = (r: ListRow): PriceList => ({
   id: r.id,
@@ -8,9 +18,11 @@ const toList = (r: ListRow): PriceList => ({
   slug: r.slug,
   title: r.title,
   columns: JSON.parse(r.columns_json),
+  whatsapp: r.whatsapp,
+  publishedAt: r.published_at,
 });
 
-const BATCH_SIZE = 90; // we send statements to D1 in chunks
+const BATCH_SIZE = 90;
 
 export function d1Db(db: D1Database): DbPort {
   return {
@@ -32,12 +44,12 @@ export function d1Db(db: D1Database): DbPort {
         .prepare("INSERT INTO price_lists (id, owner_id, slug, title, columns_json) VALUES (?, ?, ?, ?, ?)")
         .bind(id, ownerId, slug, title, JSON.stringify(columns))
         .run();
-      return { id, ownerId, slug, title, columns };
+      return { id, ownerId, slug, title, columns, whatsapp: null, publishedAt: null };
     },
 
     async listListsByOwner(ownerId) {
       const { results } = await db
-        .prepare("SELECT id, owner_id, slug, title, columns_json FROM price_lists WHERE owner_id = ? ORDER BY created_at DESC")
+        .prepare(`SELECT ${LIST_COLUMNS} FROM price_lists WHERE owner_id = ? ORDER BY created_at DESC`)
         .bind(ownerId)
         .all<ListRow>();
       return results.map(toList);
@@ -45,7 +57,7 @@ export function d1Db(db: D1Database): DbPort {
 
     async getListForOwner(ownerId, listId) {
       const row = await db
-        .prepare("SELECT id, owner_id, slug, title, columns_json FROM price_lists WHERE id = ? AND owner_id = ?")
+        .prepare(`SELECT ${LIST_COLUMNS} FROM price_lists WHERE id = ? AND owner_id = ?`)
         .bind(listId, ownerId)
         .first<ListRow>();
       return row ? toList(row) : null;
@@ -60,7 +72,6 @@ export function d1Db(db: D1Database): DbPort {
     },
 
     async saveList(ownerId, listId, title, columns, rows) {
-      // Ownership check first: a list that isn't yours looks like it doesn't exist.
       const owned = await db
         .prepare("SELECT id FROM price_lists WHERE id = ? AND owner_id = ?")
         .bind(listId, ownerId)
@@ -82,6 +93,14 @@ export function d1Db(db: D1Database): DbPort {
         await db.batch(statements.slice(i, i + BATCH_SIZE));
       }
       return true;
+    },
+
+    async setPublication(ownerId, listId, publishedAt, whatsapp) {
+      const res = await db
+        .prepare("UPDATE price_lists SET published_at = ?, whatsapp = COALESCE(?, whatsapp) WHERE id = ? AND owner_id = ?")
+        .bind(publishedAt, whatsapp, listId, ownerId)
+        .run();
+      return res.meta.changes > 0;
     },
   };
 }
