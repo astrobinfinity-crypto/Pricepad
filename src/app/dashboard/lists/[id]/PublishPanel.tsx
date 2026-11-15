@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { apiFetch } from "../../../../lib/api";
 
 type Props = {
@@ -104,6 +105,13 @@ export default function PublishPanel({ listId, slug, initialWhatsapp, initialPub
 
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
       {note && <p className="mt-2 text-sm text-green-700">{note}</p>}
+
+      <Link
+        href={`/dashboard/lists/${listId}/print`}
+        className="mt-3 inline-block rounded-lg border px-3 py-2 text-sm"
+      >
+        Print QR card and rate card
+      </Link>
 
       {published && (
         <div className="mt-3 text-sm">
