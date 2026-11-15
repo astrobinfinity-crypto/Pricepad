@@ -1,12 +1,6 @@
-// What the app needs from ANY AI provider. Gemini, Qwen, etc. must follow this.
-export type ColumnMapping = {
-  item: string | null;
-  unit: string | null;
-  mrp: string | null;
-  price: string | null;
-};
+// One entry per column of the owner's list: the index of the matching spreadsheet column, or null.
+export type ColumnMapping = (number | null)[];
 
 export interface AIProvider {
-  /** Given the headers and a few sample rows of an Excel sheet, guess which column is which. */
-  mapColumns(headers: string[], sampleRows: string[][]): Promise<ColumnMapping>;
+  mapColumns(targetColumns: string[], sourceHeaders: string[], sampleRows: string[][]): Promise<ColumnMapping>;
 }

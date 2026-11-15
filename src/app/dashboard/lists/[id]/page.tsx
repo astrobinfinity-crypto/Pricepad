@@ -216,6 +216,18 @@ export default function ListEditorPage() {
         >
           Add column
         </button>
+        <Link
+          href={`/dashboard/lists/${id}/import`}
+          onClick={(e) => {
+            if (dirty) {
+              e.preventDefault();
+              setError("Save your changes before importing.");
+            }
+          }}
+          className="rounded-lg border px-4 py-2"
+        >
+          Import from Excel / CSV
+        </Link>
       </div>
     </main>
   );

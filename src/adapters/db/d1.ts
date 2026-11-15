@@ -22,7 +22,7 @@ const toList = (r: ListRow): PriceList => ({
   publishedAt: r.published_at,
 });
 
-const BATCH_SIZE = 90;
+
 
 export function d1Db(db: D1Database): DbPort {
   return {
@@ -89,9 +89,7 @@ export function d1Db(db: D1Database): DbPort {
             .bind(crypto.randomUUID(), listId, i, JSON.stringify(cells), cells.join(" ").toLowerCase())
         ),
       ];
-      for (let i = 0; i < statements.length; i += BATCH_SIZE) {
-        await db.batch(statements.slice(i, i + BATCH_SIZE));
-      }
+      await db.batch(statements); // one all-or-nothing transaction
       return true;
     },
 
