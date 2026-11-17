@@ -10,10 +10,14 @@ import { auth } from "../../../../../lib/firebase-client";
 import { apiFetch } from "../../../../../lib/api";
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
-const MAX_IMPORT_ROWS = 2000;
-const MAX_TOTAL_ROWS = 5000;
 
-type ListData = { id: string; title: string; columns: string[]; rows: string[][] };
+type ListData = {
+  id: string;
+  title: string;
+  columns: string[];
+  rows: string[][];
+  limits: { itemsPerList: number; importRows: number };
+};
 type MapResult = { mapping: (number | null)[]; usedAI: boolean; aiLimited: boolean };
 
 const cellText = (cell: unknown) =>
@@ -86,11 +90,15 @@ export default function ImportPage() {
       const hdrs = all[headerIdx].slice(0, 60).map((h) => h.slice(0, 100));
       const rows = all.slice(headerIdx + 1).filter((r) => r.some((c) => c !== ""));
       if (rows.length === 0) throw new Error("No items found below the header row.");
-      if (rows.length > MAX_IMPORT_ROWS) {
-        throw new Error(`This file has ${rows.length} items. Please split it into files of ${MAX_IMPORT_ROWS} or fewer.`);
+      if (rows.length > list.limits.importRows) {
+        throw new Error(
+          `This file has ${rows.length} items, but your plan allows importing ${list.limits.importRows} at a time. Split the file, or upgrade for more.`
+        );
       }
-      if (list.rows.length + rows.length > MAX_TOTAL_ROWS) {
-        throw new Error(`A list can hold ${MAX_TOTAL_ROWS} items. This import would go over that.`);
+      if (list.rows.length + rows.length > list.limits.itemsPerList) {
+        throw new Error(
+          `Your plan allows ${list.limits.itemsPerList} items per list. This import would go over that. Upgrade for more.`
+        );
       }
 
       const res = await apiFetch(`/api/lists/${id}/map-columns`, {
@@ -166,7 +174,14 @@ export default function ImportPage() {
       />
 
       {busy && <p className="mt-3 text-gray-600">Working...</p>}
-      {error && <p className="mt-3 text-red-600">{error}</p>}
+            {error && (
+        <p className="mt-3 text-red-600">
+          {error}{" "}
+          <Link href="/pricing" className="underline">
+            See plans
+          </Link>
+        </p>
+      )}
 
       {headers.length > 0 && (
         <section className="mt-6">

@@ -1,17 +1,19 @@
-import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { buildContainer } from "../../../container";
-import { requireUser, UnauthorizedError } from "../../../core/services/requireUser";
+import { requireUser } from "../../../core/services/requireUser";
+import { getPlanFor } from "../../../core/policy";
+import { errorResponse, getContainer } from "../../../lib/server";
 
 export async function GET(req: Request) {
-  const { env } = getCloudflareContext();
-  const c = buildContainer(env as unknown as Record<string, unknown>);
   try {
+    const c = getContainer();
     const user = await requireUser(req, c);
-    return Response.json({ userId: user.userId, email: user.email });
+    const plan = await getPlanFor(c.db, user.userId);
+    return Response.json({
+      userId: user.userId,
+      email: user.email,
+      plan: plan.name,
+      planUntil: plan.name === "free" ? null : plan.until,
+    });
   } catch (e) {
-    if (e instanceof UnauthorizedError) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    throw e;
+    return errorResponse(e);
   }
 }

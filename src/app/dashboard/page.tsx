@@ -17,12 +17,14 @@ export default function DashboardPage() {
   const [title, setTitle] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [plan, setPlan] = useState<{ name: "free" | "plus" | "pro"; until: number | null } | null>(null);
 
   const loadLists = useCallback(async () => {
     const res = await apiFetch("/api/lists");
     if (!res.ok) throw new Error("load failed");
     setLists((await res.json()) as PriceList[]);
   }, []);
+
 
   useEffect(() => {
     return onAuthStateChanged(auth, async (user) => {
@@ -33,6 +35,11 @@ export default function DashboardPage() {
       setEmail(user.email);
       try {
         await loadLists();
+        const me = await apiFetch("/api/me");
+        if (me.ok) {
+          const d = (await me.json()) as { plan: "free" | "plus" | "pro"; planUntil: number | null };
+          setPlan({ name: d.plan, until: d.planUntil });
+        }
         setReady(true);
       } catch {
         setError("Could not load your lists.");
@@ -72,7 +79,19 @@ export default function DashboardPage() {
         </button>
       </div>
       {email && <p className="mt-1 text-sm text-gray-600">{email}</p>}
-
+    
+      {plan && (
+        <p className="mt-3 rounded-lg bg-gray-50 p-3 text-sm">
+          {plan.name === "free"
+            ? "You are on the Free plan."
+            : `You have the ${plan.name === "pro" ? "Pro" : "Plus"} plan${
+                plan.until ? ` for ${Math.max(0, Math.ceil((plan.until - Date.now() / 1000) / 86400))} more days` : ""
+              }.`}{" "}
+          <Link href="/pricing" className="underline">
+            See plans
+          </Link>
+        </p>
+      )}
       <form onSubmit={createList} className="mt-6 flex gap-2">
         <input
           value={title}

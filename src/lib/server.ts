@@ -13,8 +13,8 @@ export function errorResponse(e: unknown) {
   if (e instanceof UnauthorizedError) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
-  if (e instanceof AppError) {
-    return Response.json({ error: e.message }, { status: e.status });
+ if (e instanceof AppError) {
+    return Response.json({ error: e.message, code: e.code }, { status: e.status });
   }
   console.error(e); // full details stay in the server logs, not sent to the user
   return Response.json({ error: "Something went wrong" }, { status: 500 });

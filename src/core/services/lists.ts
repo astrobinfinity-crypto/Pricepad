@@ -1,8 +1,6 @@
 import { z } from "zod";
 import type { DbPort } from "../ports/db";
-import { AppError } from "../errors";
-
-const MAX_LISTS_PER_USER = 20; // protects your costs; we'll tie this to plans later
+import { getPlanFor, limitError } from "../policy";
 
 export const createListInput = z.object({
   title: z.string().trim().min(1).max(100),
@@ -30,9 +28,11 @@ function makeSlug(title: string) {
 }
 
 export async function createListForUser(db: DbPort, userId: string, input: CreateListInput) {
+  const plan = await getPlanFor(db, userId);
   const existing = await db.listListsByOwner(userId);
-  if (existing.length >= MAX_LISTS_PER_USER) {
-    throw new AppError(403, "List limit reached");
+  if (existing.length >= plan.limits.lists) {
+    const n = plan.limits.lists;
+    throw limitError(`The ${plan.limits.label} plan allows ${n} price list${n === 1 ? "" : "s"}. See Plans to upgrade.`);
   }
   return db.createList(userId, input.title, makeSlug(input.title), input.columns);
 }

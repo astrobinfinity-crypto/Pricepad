@@ -3,15 +3,13 @@ import type { AIProvider, ColumnMapping } from "../ports/ai";
 import type { CachePort } from "../ports/cache";
 import type { DbPort } from "../ports/db";
 import { AppError } from "../errors";
+import { getPlanFor } from "../policy";
 
 export const mapInput = z.object({
   headers: z.array(z.string().max(100)).min(1).max(60),
   sampleRows: z.array(z.array(z.string().max(100)).max(60)).max(5),
 });
 export type MapInput = z.infer<typeof mapInput>;
-
-const AI_CALLS_PER_DAY = 20;
-
 // Names that mean the same thing. Normalized: lowercase, letters and digits only.
 const GROUPS = [
   ["item", "product", "name", "particulars", "itemname"],
@@ -63,10 +61,11 @@ function merge(base: ColumnMapping, ai: ColumnMapping): ColumnMapping {
 }
 
 // A rough daily cap on AI calls per user. (KV isn't perfectly exact, which is fine for a cost guard.)
-async function spendAiCall(cache: CachePort, userId: string) {
+// A rough daily cap on AI calls per user. (KV isn't perfectly exact, which is fine for a cost guard.)
+async function spendAiCall(cache: CachePort, userId: string, limit: number) {
   const key = `ai:${userId}:${new Date().toISOString().slice(0, 10)}`;
   const used = Number((await cache.get(key)) ?? "0");
-  if (used >= AI_CALLS_PER_DAY) return false;
+  if (used >= limit) return false;
   await cache.put(key, String(used + 1), 86400);
   return true;
 }
@@ -81,14 +80,14 @@ export async function suggestMapping(c: Deps, userId: string, listId: string, in
   if (base.every((i) => i !== null) || !c.ai) {
     return { mapping: base, usedAI: false, aiLimited: false };
   }
-  if (!(await spendAiCall(c.cache, userId))) {
+  const plan = await getPlanFor(c.db, userId);
+  if (!(await spendAiCall(c.cache, userId, plan.limits.aiPerDay))) {
     return { mapping: base, usedAI: false, aiLimited: true };
   }
   try {
     const ai = await c.ai.mapColumns(list.columns, input.headers, input.sampleRows);
     return { mapping: merge(base, ai), usedAI: true, aiLimited: false };
   } catch (e) {
-    // If the AI is down or answers badly, the import still works with the free match.
     console.error("AI mapping failed:", e instanceof Error ? e.message : "unknown");
     return { mapping: base, usedAI: false, aiLimited: false };
   }

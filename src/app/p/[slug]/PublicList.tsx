@@ -107,11 +107,13 @@ export default function PublicList({ list }: { list: PublishedList }) {
 
       {matches.length === 0 && <p className="mt-6 text-gray-600">No items match your search.</p>}
 
-      <p className="mt-10 text-center text-sm text-gray-500">
-        <Link href="/login" className="underline">
-          Create your free price list in 60s with PricePad
-        </Link>
-      </p>
+        {list.showBranding !== false && (
+        <p className="mt-10 text-center text-sm text-gray-500">
+          <Link href="/login" className="underline">
+            Create your free price list in 60s with PricePad
+          </Link>
+        </p>
+      )}
 
       {cartCount > 0 && (
         <div className="fixed inset-x-0 bottom-0 border-t bg-white p-3">

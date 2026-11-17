@@ -1,4 +1,5 @@
-import type { DbPort, PriceList } from "../../core/ports/db";
+import type { Account, DbPort, PriceList } from "../../core/ports/db";
+import { PLANS, TRIAL_DAYS, TRIAL_PLAN, type PlanName } from "../../core/plans";
 
 type ListRow = {
   id: string;
@@ -8,9 +9,10 @@ type ListRow = {
   columns_json: string;
   whatsapp: string | null;
   published_at: number | null;
+  pin_hash: string | null;
 };
 
-const LIST_COLUMNS = "id, owner_id, slug, title, columns_json, whatsapp, published_at";
+const LIST_COLUMNS = "id, owner_id, slug, title, columns_json, whatsapp, published_at, pin_hash";
 
 const toList = (r: ListRow): PriceList => ({
   id: r.id,
@@ -20,16 +22,18 @@ const toList = (r: ListRow): PriceList => ({
   columns: JSON.parse(r.columns_json),
   whatsapp: r.whatsapp,
   publishedAt: r.published_at,
+  hasPin: !!r.pin_hash, // only a yes/no leaves this file, never the hash
 });
-
-
 
 export function d1Db(db: D1Database): DbPort {
   return {
     async upsertUser(firebaseUid, email) {
+      // A brand-new user starts with a free trial. An existing user is left untouched.
       await db
-        .prepare("INSERT INTO users (id, firebase_uid, email) VALUES (?, ?, ?) ON CONFLICT(firebase_uid) DO NOTHING")
-        .bind(crypto.randomUUID(), firebaseUid, email ?? null)
+        .prepare(
+          "INSERT INTO users (id, firebase_uid, email, plan, plan_until) VALUES (?, ?, ?, ?, unixepoch() + ?) ON CONFLICT(firebase_uid) DO NOTHING"
+        )
+        .bind(crypto.randomUUID(), firebaseUid, email ?? null, TRIAL_PLAN, TRIAL_DAYS * 86400)
         .run();
       const row = await db
         .prepare("SELECT id FROM users WHERE firebase_uid = ?")
@@ -38,13 +42,26 @@ export function d1Db(db: D1Database): DbPort {
       return row!.id;
     },
 
+    async getAccount(userId): Promise<Account> {
+      const row = await db
+        .prepare("SELECT plan, plan_until FROM users WHERE id = ?")
+        .bind(userId)
+        .first<{ plan: string; plan_until: number | null }>();
+      const plan: PlanName = row && row.plan in PLANS ? (row.plan as PlanName) : "free";
+      return { plan, planUntil: row?.plan_until ?? null };
+    },
+
+    async setPlan(userId, plan, planUntil) {
+      await db.prepare("UPDATE users SET plan = ?, plan_until = ? WHERE id = ?").bind(plan, planUntil, userId).run();
+    },
+
     async createList(ownerId, title, slug, columns) {
       const id = crypto.randomUUID();
       await db
         .prepare("INSERT INTO price_lists (id, owner_id, slug, title, columns_json) VALUES (?, ?, ?, ?, ?)")
         .bind(id, ownerId, slug, title, JSON.stringify(columns))
         .run();
-      return { id, ownerId, slug, title, columns, whatsapp: null, publishedAt: null };
+      return { id, ownerId, slug, title, columns, whatsapp: null, publishedAt: null, hasPin: false };
     },
 
     async listListsByOwner(ownerId) {
@@ -69,6 +86,14 @@ export function d1Db(db: D1Database): DbPort {
         .bind(listId)
         .all<{ data_json: string }>();
       return results.map((r) => JSON.parse(r.data_json) as string[]);
+    },
+
+    async countItems(listId) {
+      const row = await db
+        .prepare("SELECT COUNT(*) AS n FROM items WHERE list_id = ?")
+        .bind(listId)
+        .first<{ n: number }>();
+      return row?.n ?? 0;
     },
 
     async saveList(ownerId, listId, title, columns, rows) {
@@ -97,6 +122,37 @@ export function d1Db(db: D1Database): DbPort {
       const res = await db
         .prepare("UPDATE price_lists SET published_at = ?, whatsapp = COALESCE(?, whatsapp) WHERE id = ? AND owner_id = ?")
         .bind(publishedAt, whatsapp, listId, ownerId)
+        .run();
+      return res.meta.changes > 0;
+    },
+
+    // One atomic statement: it only counts the publish if today's limit isn't used up yet.
+    async claimPublishSlot(ownerId, listId, day, limit) {
+      const res = await db
+        .prepare(
+          `UPDATE price_lists
+             SET publish_count = CASE WHEN publish_day = ? THEN publish_count + 1 ELSE 1 END,
+                 publish_day = ?
+           WHERE id = ? AND owner_id = ?
+             AND (publish_day IS NOT ? OR publish_count < ?)`
+        )
+        .bind(day, day, listId, ownerId, day, limit)
+        .run();
+      return res.meta.changes > 0;
+    },
+
+    async getPinHash(ownerId, listId) {
+      const row = await db
+        .prepare("SELECT pin_hash FROM price_lists WHERE id = ? AND owner_id = ?")
+        .bind(listId, ownerId)
+        .first<{ pin_hash: string | null }>();
+      return row?.pin_hash ?? null;
+    },
+
+    async setPinHash(ownerId, listId, pinHash) {
+      const res = await db
+        .prepare("UPDATE price_lists SET pin_hash = ? WHERE id = ? AND owner_id = ?")
+        .bind(pinHash, listId, ownerId)
         .run();
       return res.meta.changes > 0;
     },

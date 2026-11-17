@@ -17,6 +17,7 @@ type ListData = {
   rows: string[][];
   whatsapp: string | null;
   publishedAt: number | null;
+  limits: { itemsPerList: number; importRows: number };
 };
 
 export default function ListEditorPage() {
@@ -31,6 +32,7 @@ export default function ListEditorPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [maxItems, setMaxItems] = useState(5000);
   const [pub, setPub] = useState<{ slug: string; whatsapp: string | null; publishedAt: number | null } | null>(null);
 
   useEffect(() => {
@@ -46,6 +48,7 @@ export default function ListEditorPage() {
         setTitle(data.title);
         setColumns(data.columns);
         setRows(data.rows);
+        setMaxItems(data.limits.itemsPerList);
         setPub({ slug: data.slug, whatsapp: data.whatsapp, publishedAt: data.publishedAt });
         setLoading(false);
       } catch {
@@ -73,7 +76,13 @@ export default function ListEditorPage() {
     edit(setRows, rows.map((row, i) => (i === r ? row.map((cell, j) => (j === c ? value : cell)) : row)));
   const setColumnName = (c: number, value: string) =>
     edit(setColumns, columns.map((name, j) => (j === c ? value : name)));
-  const addRow = () => edit(setRows, [...rows, columns.map(() => "")]);
+ const addRow = () => {
+  if (rows.length >= maxItems) {
+    setError(`Your plan allows ${maxItems} items per list. Open Plans from the dashboard to upgrade.`);
+    return;
+  }
+  edit(setRows, [...rows, columns.map(() => "")]);
+};
   const deleteRow = (r: number) => edit(setRows, rows.filter((_, i) => i !== r));
 
   function addColumn() {
@@ -93,7 +102,7 @@ export default function ListEditorPage() {
     setMessage("");
   }
 
-  async function save() {
+    async function save() {
     setSaving(true);
     setError("");
     setMessage("");
@@ -102,11 +111,18 @@ export default function ListEditorPage() {
         method: "PUT",
         body: JSON.stringify({ title, columns, rows }),
       });
-      if (!res.ok) throw new Error("save failed");
+      if (!res.ok) {
+        const d = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
+        throw new Error(d.code === "PLAN_LIMIT" && d.error ? d.error : "save failed");
+      }
       setDirty(false);
       setMessage("Saved");
-    } catch {
-      setError("Could not save. Check that no column name is empty, then try again.");
+    } catch (e) {
+      setError(
+        e instanceof Error && e.message !== "save failed"
+          ? e.message
+          : "Could not save. Check that no column name is empty, then try again."
+      );
     } finally {
       setSaving(false);
     }
