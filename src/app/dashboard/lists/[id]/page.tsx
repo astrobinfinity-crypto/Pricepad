@@ -17,7 +17,8 @@ type ListData = {
   rows: string[][];
   whatsapp: string | null;
   publishedAt: number | null;
-  limits: { itemsPerList: number; importRows: number };
+  hasPin: boolean;
+limits: { itemsPerList: number; importRows: number; pin: boolean };
 };
 
 export default function ListEditorPage() {
@@ -33,7 +34,13 @@ export default function ListEditorPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [maxItems, setMaxItems] = useState(5000);
-  const [pub, setPub] = useState<{ slug: string; whatsapp: string | null; publishedAt: number | null } | null>(null);
+  const [pub, setPub] = useState<{
+    slug: string;
+    whatsapp: string | null;
+    publishedAt: number | null;
+    hasPin: boolean;
+    canPin: boolean;
+  } | null>(null);
 
   useEffect(() => {
     return onAuthStateChanged(auth, async (user) => {
@@ -49,7 +56,13 @@ export default function ListEditorPage() {
         setColumns(data.columns);
         setRows(data.rows);
         setMaxItems(data.limits.itemsPerList);
-        setPub({ slug: data.slug, whatsapp: data.whatsapp, publishedAt: data.publishedAt });
+        setPub({
+          slug: data.slug,
+          whatsapp: data.whatsapp,
+          publishedAt: data.publishedAt,
+          hasPin: data.hasPin,
+          canPin: data.limits.pin,
+        });
         setLoading(false);
       } catch {
         setError("Could not load this list.");
@@ -164,6 +177,8 @@ export default function ListEditorPage() {
           initialWhatsapp={pub.whatsapp}
           initialPublishedAt={pub.publishedAt}
           unsaved={dirty}
+          initialHasPin={pub.hasPin}
+          canPin={pub.canPin}
         />
       )}
       <div className="mt-4 overflow-x-auto">
